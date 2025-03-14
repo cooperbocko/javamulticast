@@ -1,2 +1,4 @@
-/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/Coordinator.java
-/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/app/App.java
+/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/coordinator/Coordinator.java
+/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/participant/Participant.java
+/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/utils/Connection.java
+/Users/cooperbocko/vsCode/classes/Distributed/javamulticast/javamulticast/src/main/java/com/mycompany/app/utils/Message.java

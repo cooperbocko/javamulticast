@@ -9,15 +9,17 @@ import java.nio.channels.SocketChannel;
 
 public class Participant {
 
-    private int participantId;
-    private String messageLogFile;
-    private String coordinatorIp;
-    private int coordinatorPort; 
+    private int participantId; // Unique participant ID
+    private String messageLogFile; // File to store message logs 
+    private String coordinatorIp; // Coordinator IP address
+    private int coordinatorPort; // Coordinator port number 
 
+    // Reads configuration file to initialize participant 
     public Participant(String configFile) throws IOException {
         parseConfigFile(configFile);
     }
 
+    // Parse configuration file and extract details 
     private void parseConfigFile(String configFile) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
             this.participantId = Integer.parseInt(reader.readLine().trim());
@@ -39,12 +41,12 @@ public class Participant {
      */
     public static void main(String args[]) throws IOException {
         Participant p = new Participant(args[0]); 
-        
+
         SocketChannel channel = null;
 
         channel = SocketChannel.open();
 
-        InetSocketAddress server = new InetSocketAddress("localhost", 8080);
+        InetSocketAddress server = new InetSocketAddress(p.coordinatorIp, p.coordinatorPort);
         channel.connect(server);
 
         // Wait until the connection is established

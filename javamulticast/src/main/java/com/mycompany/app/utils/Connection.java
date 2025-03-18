@@ -1,13 +1,14 @@
 package com.mycompany.app.utils;
 
-public class Connection {
+import java.nio.channels.SocketChannel;
 
-    /*
-     * id
-     * socket
-     * read port
-     * isRegistered
-     * isOnline
-     */
-    
+public class Connection {
+    public int id;
+    public SocketChannel channel;
+    public String readIp;
+    public int readPort;
+    public boolean isOnline;
+    public char[] incoming;
+    public char[] outgoing;
+
 }

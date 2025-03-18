@@ -1,10 +1,10 @@
 package com.mycompany.app.utils;
 
+import java.time.LocalDateTime;
+import java.util.Enumeration;
+
 public class Message {
-    
-    /*
-     * connections[]
-     * message
-     * time
-     */
+     public Enumeration<Integer> idsToSend;
+     public String message;
+     public LocalDateTime time;
 }

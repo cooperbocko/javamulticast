@@ -1,9 +1,11 @@
 package com.mycompany.app.utils;
 
 import java.time.LocalDateTime;
+import java.util.Enumeration;
+import java.util.Set;
 
 public class Message {
-     int[] idsToSend;
-     String message;
-     LocalDateTime time;
+     public Enumeration<Integer> idsToSend;
+     public String message;
+     public LocalDateTime time;
 }

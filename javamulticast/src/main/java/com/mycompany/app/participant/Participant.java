@@ -37,7 +37,7 @@ public class Participant {
 
         System.out.println("Connected to server");
 
-        String message = "Hello";
+        String message = "Register 1 127.0.0.1 3000 ";
         ByteBuffer buf = ByteBuffer.wrap(message.getBytes());
 
         while (buf.hasRemaining()) {

@@ -1,5 +1,7 @@
 package com.mycompany.app.coordinator;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -8,24 +10,30 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.Set;
 
 import com.mycompany.app.utils.Connection;
 import com.mycompany.app.utils.Message;
 
 public class Coordinator {
     private static final int MAX_MESSAGE_LENGTH = 4096;
-    private static int portNumber = 8080;
+    private static int portNumber; // = 8080;
     private static int messageTimeout;
     private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<>();
     private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<>();
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<>();
 
     public static void main(String args[]) throws IOException {
+
+        parseConfigFile(args[0]);
+        System.out.println("Starting Coordinator...");
+        System.out.println("Port Number: " + portNumber);
+        System.out.println("Persistence Timeout: " + messageTimeout + " seconds");
+
         //Thread pool
         ExecutorService threadPool = Executors.newFixedThreadPool(5);
 
@@ -221,6 +229,12 @@ public class Coordinator {
         channel.write(buf);
     }
 
+    private static void parseConfigFile(String configFile) throws IOException {
+         try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+            portNumber = Integer.parseInt(reader.readLine().trim());
+            messageTimeout = Integer.parseInt(reader.readLine().trim());
+        }
+    }
 
     //call by value cant return message and possible errors at the same time without a created type
     /* 

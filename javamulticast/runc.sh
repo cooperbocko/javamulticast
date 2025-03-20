@@ -1,1 +1,1 @@
-java -cp target/my-app-1.0-SNAPSHOT.jar com.mycompany.app.coordinator.Coordinator
+java -cp target/my-app-1.0-SNAPSHOT.jar com.mycompany.app.coordinator.Coordinator src/main/java/com/mycompany/app/coordinator/coordinator-conf.txt

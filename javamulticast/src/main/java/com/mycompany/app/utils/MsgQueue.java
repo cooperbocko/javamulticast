@@ -40,6 +40,7 @@ public class MsgQueue {
         for (int i = 0; i < iMsg.size(); i++) {
             returnArray[i] = iMsg.get(i).getMessage();
         }
+        purgeQueue(id);
         return returnArray;
     } // getMessages
 

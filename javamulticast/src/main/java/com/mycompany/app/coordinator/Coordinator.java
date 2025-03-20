@@ -20,10 +20,10 @@ import com.mycompany.app.utils.Message;
 public class Coordinator {
     private static final int MAX_MESSAGE_LENGTH = 4096;
     private static int portNumber = 8080;
-    private static int messageTimeout;
-    private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<>();
-    private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<>();
-    private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<>();
+    private static int messageTimeout = 30; //in seconds
+    private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<Integer, Connection>();
+    private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<Message>();
+    private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
 
     public static void main(String args[]) throws IOException {
         //Thread pool
@@ -114,7 +114,6 @@ public class Coordinator {
                         String ip = parsedRequest[2];
                         int port = Integer.parseInt(parsedRequest[3]);
                         if (connections.containsKey(id)) {
-                            //TODO: Send error
                             sendMessage(participant, "Already Registered!");
                             break;
                         }
@@ -127,7 +126,6 @@ public class Coordinator {
                         conn.isOnline = true;
                         connections.put(id, conn);
 
-                        //TODO: Send ack
                         sendMessage(participant, "Registered!");
                         break;
                     }
@@ -135,7 +133,6 @@ public class Coordinator {
                         //format -> deregister id
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id)) {
-                            //TODO: Send error
                             sendMessage(participant, "Not Registered!");
                             break;
                         }
@@ -145,7 +142,6 @@ public class Coordinator {
                         //participant.close();
                         //key.cancel();
 
-                        //TODO: Send ack
                         sendMessage(participant, "Deregistered!");
                         break;
                     }
@@ -153,14 +149,12 @@ public class Coordinator {
                         //format -> disconnect id
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
-                            //TODO: Send error
                             sendMessage(participant, "Not registered or already disconnected!");
                             break;
                         }
 
                         connections.get(id).isOnline = false;
 
-                        //TODO: Send ack
                         sendMessage(participant, "Disconnected!");
                         break;
                     }
@@ -168,15 +162,15 @@ public class Coordinator {
                         //format -> reconnect id timeoflastmessage
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id) || connections.get(id).isOnline) {
-                            //TODO: Send error
                             sendMessage(participant, "Not registered or already online!");
                             break;
                         }
 
                         connections.get(id).isOnline = true;
-                        //TODO: send messages that were not sent
+                        String timeoflastmessage = parsedRequest[2];
+                        LocalDateTime time = LocalDateTime.parse(timeoflastmessage);
+                        addReconnectMessages(id, time);
 
-                        //TODO: Send ack
                         sendMessage(participant, "Reconnected!");
                         break;
                     }
@@ -184,19 +178,18 @@ public class Coordinator {
                         //format multicast id message
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.contains(id) || !connections.get(id).isOnline) {
-                            //TODO: send error
                             sendMessage(participant, "Not registered or not online!");
                             break;
                         }
 
                         Message newMessage = new Message();
-                        newMessage.idsToSend = connections.keys();
+                        Set<Integer> ids = connections.keySet();
+                        newMessage.idsToSend = ids.toArray(newMessage.idsToSend);
                         newMessage.message = parsedRequest[2];
                         newMessage.time = LocalDateTime.now();
                         messageQueue.add(newMessage);
                         messageList.add(newMessage);
 
-                        //TODO: send ack
                         sendMessage(participant, "Message Sent!");
                         break;
                     }
@@ -219,6 +212,29 @@ public class Coordinator {
         buf.put(message.getBytes());
         buf.flip();
         channel.write(buf);
+    }
+
+    public static void addReconnectMessages(int id, LocalDateTime time) {
+        //Create an iterator copy of message list, should be able to safely remove from front since new entries enter from the back
+        LocalDateTime now = LocalDateTime.now().minusSeconds(messageTimeout);
+        Iterator<Message> messages = messageList.iterator();
+        while(messages.hasNext()) {
+            Message message = messages.next();
+            //remove all exprired messages
+            if (now.isAfter(message.time)) {
+                messageList.removeFirst();
+            } else {
+                //add messasge only if past the time specified
+                if (time.isBefore(message.time)) {
+                    Message newMessage = new Message();
+                    Integer[] ids = {id};
+                    newMessage.idsToSend = ids;
+                    newMessage.message = message.message;
+                    newMessage.time = message.time;
+                    messageQueue.add(newMessage); //dont add to message list since we have already sent this messsage before
+                }
+            }
+        }
     }
 
 

@@ -53,6 +53,7 @@ public class Coordinator {
 
             //check each socket
             while(keys.hasNext()) {
+                System.out.println(LocalDateTime.now().toString());
                 SelectionKey key = keys.next();
                 keys.remove();
 
@@ -69,6 +70,9 @@ public class Coordinator {
                     //handle client requests
                     //threadPool.submit(new DoSomething(clientChannel));
                     new HandleRequest(key).run();
+                }
+                else if (key.isWritable()) {
+
                 }
             }
         }
@@ -110,6 +114,11 @@ public class Coordinator {
                 switch(parsedRequest[0].toLowerCase()) {
                     case "register": {
                         //format -> register id ip port (assume it is correct format)
+                        if (parsedRequest.length < 4) {
+                            sendMessage(participant, "invalid format!");
+                            break;
+                        }
+
                         int id = Integer.parseInt(parsedRequest[1]);
                         String ip = parsedRequest[2];
                         int port = Integer.parseInt(parsedRequest[3]);
@@ -131,6 +140,11 @@ public class Coordinator {
                     }
                     case "deregister": {
                         //format -> deregister id
+                        if (parsedRequest.length < 2) {
+                            sendMessage(participant, "invalid format!");
+                            break;
+                        }
+
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id)) {
                             sendMessage(participant, "Not Registered!");
@@ -147,6 +161,11 @@ public class Coordinator {
                     }
                     case "disconnect": {
                         //format -> disconnect id
+                        if (parsedRequest.length < 2) {
+                            sendMessage(participant, "invalid format!");
+                            break;
+                        }
+
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or already disconnected!");
@@ -160,6 +179,11 @@ public class Coordinator {
                     }
                     case "reconnect": {
                         //format -> reconnect id timeoflastmessage
+                        if (parsedRequest.length < 3) {
+                            sendMessage(participant, "invalid format!");
+                            break;
+                        }
+
                         int id = Integer.parseInt(parsedRequest[1]);
                         if (!connections.containsKey(id) || connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or already online!");
@@ -176,14 +200,20 @@ public class Coordinator {
                     }
                     case "multicast": {
                         //format multicast id message
+                        if (parsedRequest.length < 3) {
+                            sendMessage(participant, "invalid format!");
+                            break;
+                        }
+
                         int id = Integer.parseInt(parsedRequest[1]);
-                        if (!connections.contains(id) || !connections.get(id).isOnline) {
+                        if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or not online!");
                             break;
                         }
 
                         Message newMessage = new Message();
                         Set<Integer> ids = connections.keySet();
+                        newMessage.idsToSend = new Integer[0]; //TODO: check that the instantiation works
                         newMessage.idsToSend = ids.toArray(newMessage.idsToSend);
                         newMessage.message = parsedRequest[2];
                         newMessage.time = LocalDateTime.now();
@@ -205,10 +235,11 @@ public class Coordinator {
         }
     }
 
-    //TODO: Maybe change it from thorwing an error to catching the error and returning -1
-    //TODO: Also maybe migrate to a util file since 
+    //sends message to participant at a channel. MUST USE IT FOR ALL MESSAGES
     public static void sendMessage (SocketChannel channel, String message) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
+        byte[] messageBytes = message.getBytes();
+        ByteBuffer buf = ByteBuffer.allocate(4 + MAX_MESSAGE_LENGTH);
+        buf.putInt(messageBytes.length);
         buf.put(message.getBytes());
         buf.flip();
         channel.write(buf);
@@ -236,24 +267,4 @@ public class Coordinator {
             }
         }
     }
-
-
-    //call by value cant return message and possible errors at the same time without a created type
-    /* 
-    public static int recieveMessage (SocketChannel channel, String message) throws IOException{
-        ByteBuffer buf = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
-        int bytesRead = channel.read(buf);
-
-        if (bytesRead == -1) {
-            return -1; //Read Error
-        }
-        if (bytesRead == 0) {
-            return 0; //sometimes there is nothing to read
-        }
-
-        buf.flip();
-        message = new String(buf.array(), 0, buf.limit());
-        return 1;
-    }
-    */
 }

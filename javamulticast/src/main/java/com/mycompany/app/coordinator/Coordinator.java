@@ -235,7 +235,7 @@ public class Coordinator {
         }
     }
 
-    //sends message to participant at a channel. MUST USE IT FOR ALL MESSAGES
+    //sends message to participant at a channel. MUST USE IT FOR ALL MESSAGES TO CLIENT
     public static void sendMessage (SocketChannel channel, String message) throws IOException {
         byte[] messageBytes = message.getBytes();
         ByteBuffer buf = ByteBuffer.allocate(4 + MAX_MESSAGE_LENGTH);

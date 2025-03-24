@@ -1,5 +1,6 @@
 package com.mycompany.app.utils;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 public class Connection {
@@ -8,7 +9,7 @@ public class Connection {
     public String readIp;
     public int readPort;
     public boolean isOnline;
-    public char[] incoming;
-    public char[] outgoing;
+    public ByteBuffer incoming;
+    public ByteBuffer outgoing;
 
 }

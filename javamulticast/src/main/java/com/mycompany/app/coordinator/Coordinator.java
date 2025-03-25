@@ -21,49 +21,53 @@ public class Coordinator {
     private static final int MAX_MESSAGE_LENGTH = 4096;
     private static int portNumber = 8080;
     private static int messageTimeout = 30; //in seconds
+    
+    // Store participant connections with participant IDs as keys 
     private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<Integer, Connection>();
+    
+    // Queue for messages to be processed and stored 
     private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<Message>();
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
 
     public static void main(String args[]) throws IOException {
-        //Thread pool
+        // Thread pool
         ExecutorService threadPool = Executors.newFixedThreadPool(5);
 
-        //Open Server Socket
+        // Open Server Socket
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.bind(new java.net.InetSocketAddress(portNumber));
         serverSocketChannel.configureBlocking(false);
 
-        //Open Selector
+        // Open Selector
         Selector selector = Selector.open();
 
-        //Register server with selector
+        // Register server with selector
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         System.out.println("Server started on port: " + portNumber);
 
-        //handle connections and socket readiness
+        // Handle connections and socket readiness
         while (true) {
-            //call selector
+            // Call selector
             selector.select();
 
-            //get keys
+            // Get keys
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
             Iterator<SelectionKey> keys = selectedKeys.iterator();
 
-            //check each socket
+            // Check each socket
             while(keys.hasNext()) {
                 System.out.println(LocalDateTime.now().toString());
                 SelectionKey key = keys.next();
                 keys.remove();
 
                 if (key.isAcceptable()) {
-                    //accpting new connections
+                    // Accepting new connections
                     ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
                     SocketChannel clientChannel = serverChannel.accept();
                     clientChannel.configureBlocking(false);
 
-                    //register client with selector
+                    // Register client with selector
                     clientChannel.register(selector, SelectionKey.OP_READ);
                     System.out.println("Client connected: " + clientChannel.getRemoteAddress());
                 } else if (key.isReadable()) {

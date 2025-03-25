@@ -88,6 +88,7 @@ public class Participant {
                     String ip = "127.0.0.1";
                     id = 500;
                     int port = Integer.parseInt(parse[1]);
+                    //TODO: check that thread B is operational
                     sendCommand("register " + id + " " + ip + " " + port);
                     break;
                 case "deregister":

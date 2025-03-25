@@ -1,5 +1,7 @@
 package com.mycompany.app.coordinator;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -14,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Set;
 
+import com.mycompany.app.coordinator.Coordinator.HandleRequest;
 import com.mycompany.app.utils.Connection;
 import com.mycompany.app.utils.Message;
 
@@ -21,15 +24,25 @@ public class Coordinator {
     private static final int MAX_MESSAGE_LENGTH = 4096;
     private static int portNumber = 8080;
     private static int messageTimeout = 30; //in seconds
-    
-    // Store participant connections with participant IDs as keys 
     private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<Integer, Connection>();
-    
-    // Queue for messages to be processed and stored 
     private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<Message>();
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
 
     public static void main(String args[]) throws IOException {
+
+        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+            String portLine = br.readLine().trim();
+            portNumber = Integer.parseInt(portLine);
+            String timeoutLine = br.readLine().trim();
+            messageTimeout = Integer.parseInt(timeoutLine);
+        } catch (IOException e) {
+            System.err.println("Error reading configuration file: " + e.getMessage());
+            System.exit(1);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid number format in configuration file: " + e.getMessage());
+            System.exit(1);
+        }
+
         // Thread pool
         ExecutorService threadPool = Executors.newFixedThreadPool(5);
 

@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -19,10 +20,10 @@ public class Participant {
     private static Scanner input = new Scanner(System.in);
     private static SocketChannel channel;
     private static boolean isConnected = false;
-    private static String host = "localhost";
-    private static int port = 8080;
     private static int id;
     private static String messageLogFile;
+    private static String host;
+    private static int port;
     
     public static void main(String args[]) throws IOException {
         /*  SocketChannel channel = null;
@@ -53,12 +54,40 @@ public class Participant {
             readResonse(channel);
         }
         channel.close(); */
-        System.out.println("1");
-        String configFilePath = args[0];
-        try (BufferedReader br = new BufferedReader(new FileReader(configFilePath))) {
-            id = Integer.parseInt(br.readLine().trim());
-            messageLogFile = br.readLine().trim();
-            String[] coordinatorInfo = br.readLine().trim().split(" ");
+        // System.out.println("1");
+
+        initializeParticipant(args);
+
+        connectToServer();
+        Thread userInputThread = new Thread(Participant::handleUserCommands);
+        userInputThread.start();
+
+        // Thread messageReceiverThread = new Thread(Participant::receiveMulticastMessages);
+        // messageReceiverThread.start();
+    }
+
+    /**
+     * Reads participant configuration file and initialize variables 
+     * 
+     * @param args Command-line arguments
+     */
+    public static void initializeParticipant (String[] args) {
+        if (args.length < 1) {
+            System.err.println("Requires <config-file>");
+            System.exit(1);
+        }
+
+        String configFile = args[0];
+
+        try (BufferedReader br = new BufferedReader(new FileReader(configFile))) {
+            String idLine = br.readLine();
+            id = Integer.parseInt(idLine.trim());
+
+            String logFileLine = br.readLine();
+            messageLogFile = logFileLine.trim();
+
+            String coordinatorLine = br.readLine();
+            String[] coordinatorInfo = coordinatorLine.trim().split(" ");
             host = coordinatorInfo[0];
             port = Integer.parseInt(coordinatorInfo[1]);
         } catch (IOException e) {
@@ -68,14 +97,7 @@ public class Participant {
             System.err.println("Invalid number format in configuration file: " + e.getMessage());
             System.exit(1);
         }
-
-        // connectToServer();
-        // Thread userInputThread = new Thread(Participant::handleUserCommands);
-        // userInputThread.start();
-
-        Thread messageReceiverThread = new Thread(Participant::receiveMulticastMessages);
-        messageReceiverThread.start();
-    }
+    } // initializeParticipant
 
     private static void connectToServer() {
         try {
@@ -97,6 +119,7 @@ public class Participant {
             System.out.print("Enter command: ");
             String command = input.nextLine().trim();
             String[] parse = command.split(" ");
+            int portNumber;
 
             if (command.equalsIgnoreCase("quit")) {
                 closeConnection();
@@ -109,30 +132,55 @@ public class Participant {
                         System.out.println("Usage: register [portnumber]");
                         break;
                     }
-                    String ip = "127.0.0.1";
-                    id = 500;
-                    int port = Integer.parseInt(parse[1]);
-                    //TODO: check that thread B is operational
-                    sendCommand("register " + id + " " + ip + " " + port);
+                    portNumber = Integer.parseInt(parse[1]);
+                    // TODO: check that thread B is operational
+                    sendCommand("register " + id + " " + host + " " + portNumber);
                     break;
                 case "deregister":
-                    sendCommand("deregister " + getId());
+                    // TODO: check thread-B relinquished port before sending the deregister
+                    sendCommand("deregister " + id);
                     break;
                 case "disconnect":
-                    sendCommand("disconnect " + getId());
-                    closeConnection();
+                    // TODO: check thread-B relinquished port and is dormant before disconnecting
+                    sendCommand("disconnect " + id);
+                    System.out.println("Sent command");
+                    try {
+                        ByteBuffer responseBuffer = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
+                        int bytesRead = channel.read(responseBuffer);
+                
+                        if (bytesRead > 0) {
+                            System.out.println("In if bytesRead > 0");
+                            responseBuffer.flip(); // Prepare buffer for reading
+                            byte[] responseData = new byte[bytesRead];
+                            responseBuffer.get(responseData);
+                            String response = new String(responseData).trim();
+                            System.out.println("See response: " + response);
+
+                            // Check if the acknowledgment is what we expect
+                            if ("Disconnected!".equals(response)) {
+                                System.out.println("Disconnected! Disconnected from server.");
+                                closeConnection();
+                                System.out.println("Should have enter command prompt here");
+                            } else {
+                                System.out.println("Error: Unexpected response: " + response);
+                            }
+                        }
+                    } catch (IOException e) {
+                        System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
+                    }                
                     break;
                 case "reconnect":
                     if (parse.length < 2) {
                         System.out.println("Usage: reconnect [portnumber]");
                         break;
                     }
-                    int portNumber = Integer.parseInt(parse[1]);
+                    portNumber = Integer.parseInt(parse[1]);
                     // TODO: check thread-b is operational before sending reconnect
                     if (true) { // placeholder
+                        // TODO: retrieve actual last message timestamp
                         LocalDateTime lastMessageTime = LocalDateTime.now();
                         reconnect();
-                        sendCommand("reconnect " + getId() + " " + lastMessageTime + " " + host + " " + portNumber);
+                        sendCommand("reconnect " + id + " " + lastMessageTime + " " + host + " " + portNumber);
                     }
                     // reconnect();
                     // sendCommand("reconnect " + parse[1]);
@@ -151,7 +199,8 @@ public class Participant {
                         }
                     }
                     String message = messageBuilder.toString();
-                    sendCommand("multicast " + getId() + " " + message);
+                    sendCommand("multicast " + id + " " + message);
+                    // TODO: unblock after receiving ACK 
                     break;
                 default:
                     System.out.println("Unknown command.");
@@ -159,7 +208,7 @@ public class Participant {
         }
     }
 
-    private static void sendCommand(String command) {
+    private static void sendCommand (String command) {
         if (!isConnected) {
             System.out.println("Not connected to the server.");
             return;
@@ -266,7 +315,7 @@ public class Participant {
      * 
      * @param message Multicast message to be logged
      */
-    private static void logMessage(String message) {
+    private static void logMessage (String message) {
         try (PrintWriter out = new PrintWriter(new FileWriter(messageLogFile, true))) {
             String formattedMessage = String.format("[%s] %s", 
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), 
@@ -278,8 +327,5 @@ public class Participant {
         }
     }
 
-    private static int getId() {
-        return id; 
-    }
 
 }

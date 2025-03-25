@@ -178,20 +178,25 @@ public class Coordinator {
                     }
                     case "disconnect": {
                         //format -> disconnect id
+                        System.out.println("Received disconnect request from participant.");
                         if (parsedRequest.length < 2) {
                             sendMessage(participant, "invalid format!");
                             break;
                         }
 
                         int id = Integer.parseInt(parsedRequest[1]);
+                        System.out.println("Disconnecting participant with ID: " + id);
+
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or already disconnected!");
                             break;
                         }
 
                         connections.get(id).isOnline = false;
+                        System.out.println("Participant ID " + id + " has been marked as offline.");
 
                         sendMessage(participant, "Disconnected!");
+                        System.out.println("Sent disconnect acknowledgment to participant " + id);
                         break;
                     }
                     case "reconnect": {

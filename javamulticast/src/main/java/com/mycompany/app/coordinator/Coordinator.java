@@ -195,6 +195,7 @@ public class Coordinator {
                         connections.get(id).isOnline = false;
                         System.out.println("Participant ID " + id + " has been marked as offline.");
 
+                        System.out.println("Preparing to send acknowledgment to participant " + id + " with message: Disconnected!");
                         sendMessage(participant, "Disconnected!");
                         System.out.println("Sent disconnect acknowledgment to participant " + id);
                         break;

@@ -142,32 +142,21 @@ public class Participant {
                     break;
                 case "disconnect":
                     // TODO: check thread-B relinquished port and is dormant before disconnecting
+                    // System.out.println("Sending disconnect command for ID: " + id); // gets here 
                     sendCommand("disconnect " + id);
-                    System.out.println("Sent command");
-                    try {
-                        ByteBuffer responseBuffer = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
-                        int bytesRead = channel.read(responseBuffer);
-                
-                        if (bytesRead > 0) {
-                            System.out.println("In if bytesRead > 0");
-                            responseBuffer.flip(); // Prepare buffer for reading
-                            byte[] responseData = new byte[bytesRead];
-                            responseBuffer.get(responseData);
-                            String response = new String(responseData).trim();
-                            System.out.println("See response: " + response);
-
-                            // Check if the acknowledgment is what we expect
-                            if ("Disconnected!".equals(response)) {
-                                System.out.println("Disconnected! Disconnected from server.");
-                                closeConnection();
-                                System.out.println("Should have enter command prompt here");
-                            } else {
-                                System.out.println("Error: Unexpected response: " + response);
-                            }
-                        }
-                    } catch (IOException e) {
-                        System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
-                    }                
+                    // System.out.println("Sent command");
+                    // try {
+                    //     int result = readResponse(channel);
+                    //     System.out.println("Response read from channel: " + result); // Debugging line
+                    //     if (result == 1) {
+                    //         System.out.println("Successfully received acknowledgment.");
+                    //     } else {
+                    //         System.out.println("Failed to receive acknowledgment or read error.");
+                    //     }
+                    // } catch (IOException e) {
+                    //     System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
+                    //     // System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
+                    // }                
                     break;
                 case "reconnect":
                     if (parse.length < 2) {
@@ -244,6 +233,8 @@ public class Participant {
     }
 
     private static int readResponse(SocketChannel channel) throws IOException {
+        System.out.println("Attempting to read response from channel..."); // gets here 
+
         ByteBuffer rbuf = ByteBuffer.allocate(4);
         int error = readFull(channel, rbuf, 4);
         if (error <= 0) {
@@ -257,12 +248,16 @@ public class Participant {
 
         rbuf.flip();
         int len = rbuf.getInt();
+        System.out.println("Received message length: " + len);
+
         if (len > MAX_MESSAGE_LENGTH) {
             System.out.println("Too Long");
             return -1;
         }
 
         rbuf = ByteBuffer.allocate(len);
+        System.out.println("Reading message of length: " + len);
+
         error = readFull(channel, rbuf, len);
         if (error <= 0) {
             System.out.println("Read Error");
@@ -271,18 +266,29 @@ public class Participant {
 
         rbuf.flip();
         String response = new String(rbuf.array(), 0, rbuf.limit());
-        System.out.println(response);
+        System.out.println("Received response: " + response);
         return 1;
     }
 
     private static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
+        System.out.println("Starting to read full data of size: " + size);
         while (size > 0) {
             int bytesRead = channel.read(rbuf);
+            System.out.println("Bytes read in this iteration: " + bytesRead);
+
             if (bytesRead <= 0) {
+                if (bytesRead == 0) {
+                    System.out.println("Warning: No bytes read, possibly the channel is not ready.");
+                } else {
+                    System.out.println("Error: End of stream or read error occurred.");
+                }
                 return bytesRead; //error or eof
             }
             size -= bytesRead;
+            System.out.println("Remaining size to read: " + size);
+
         }
+        System.out.println("Successfully read full data.");
         return 1;
     }
 

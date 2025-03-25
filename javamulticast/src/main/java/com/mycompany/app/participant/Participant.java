@@ -2,12 +2,16 @@ package com.mycompany.app.participant;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
 
+import com.mycompany.app.utils.ParticipantMessageListenUtils;
 import com.mycompany.app.utils.ParticipantSendUtils;
 
 public class Participant {
+
+    private static final int MAX_MESSAGE_LENGTH = 4096;
 
     /*
      * Time of last message
@@ -18,6 +22,8 @@ public class Participant {
     private static int participantId; // Unique participant ID
 
     private static SocketChannel channel = null;
+
+    private static boolean quit = false;
 
 
     public static void main(String args[]) throws IOException {
@@ -64,6 +70,10 @@ public class Participant {
                         ParticipantSendUtils.SendMessage(input, channel, participantId);
                         break;
 
+                    case "quit":
+                        quit = true;
+                        break;
+
                     case "default":
                         break;
                 } //switch
@@ -81,7 +91,19 @@ public class Participant {
 
         //Thread for receiving messages from the server
         new Thread(() -> {
+            ByteBuffer buf = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
 
+            //Loop for listening for messages
+            while (true) {
+
+                //The user has entered quit as a command.
+                if (quit == true) {
+                    break;
+                } else {
+                    ParticipantMessageListenUtils.CheckForMessages(channel, buf);
+                } //if
+                
+            } //while
         }).start();
 
     } //main

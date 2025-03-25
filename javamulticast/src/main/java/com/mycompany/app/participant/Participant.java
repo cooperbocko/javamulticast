@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 
 public class Participant {
@@ -52,6 +53,7 @@ public class Participant {
             readResonse(channel);
         }
         channel.close(); */
+        System.out.println("1");
         String configFilePath = args[0];
         try (BufferedReader br = new BufferedReader(new FileReader(configFilePath))) {
             id = Integer.parseInt(br.readLine().trim());
@@ -67,9 +69,9 @@ public class Participant {
             System.exit(1);
         }
 
-        connectToServer();
-        Thread userInputThread = new Thread(Participant::handleUserCommands);
-        userInputThread.start();
+        // connectToServer();
+        // Thread userInputThread = new Thread(Participant::handleUserCommands);
+        // userInputThread.start();
 
         Thread messageReceiverThread = new Thread(Participant::receiveMulticastMessages);
         messageReceiverThread.start();
@@ -235,11 +237,22 @@ public class Participant {
         return 1;
     }
 
+    /**
+     * Thread-B: listen for multicast messages and log them
+     * Goal: listens for incoming messages from coordinator 
+     * via multicast socket, writes to log file 
+     */
     private static void receiveMulticastMessages() {
         try {
+            // TODO: open multicast socket on the port, join group
             while (true) {
-                Thread.sleep(5000);
+                // TODO: check if participant is online. if offline, terminate or pause thread
+                Thread.sleep(5000); // simulated waiting
+                System.out.println("5000 ms passed.");
+                // TODO: read actual multicast message from socket 
                 String simulatedMessage = "Received message at " + LocalDateTime.now();
+                System.out.println("Simulated message: " + simulatedMessage);
+                System.out.println("Attempting to log message.");
                 logMessage(simulatedMessage);
             }
         } catch (InterruptedException e) {
@@ -247,9 +260,19 @@ public class Participant {
         }
     }
 
+    /**
+     * Logs messages to a file in order
+     * Messages stored with timestamps in structured format
+     * 
+     * @param message Multicast message to be logged
+     */
     private static void logMessage(String message) {
         try (PrintWriter out = new PrintWriter(new FileWriter(messageLogFile, true))) {
-            out.println(LocalDateTime.now() + ": " + message);
+            String formattedMessage = String.format("[%s] %s", 
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), 
+                message);
+            out.println(formattedMessage);
+            System.out.println("Logged message.");
         } catch (IOException e) {
             System.err.println("Error writing to log file: " + e.getMessage());
         }

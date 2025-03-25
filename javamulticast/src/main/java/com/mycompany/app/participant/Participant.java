@@ -2,7 +2,9 @@ package com.mycompany.app.participant;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -68,6 +70,9 @@ public class Participant {
         connectToServer();
         Thread userInputThread = new Thread(Participant::handleUserCommands);
         userInputThread.start();
+
+        Thread messageReceiverThread = new Thread(Participant::receiveMulticastMessages);
+        messageReceiverThread.start();
     }
 
     private static void connectToServer() {
@@ -228,6 +233,26 @@ public class Participant {
             size -= bytesRead;
         }
         return 1;
+    }
+
+    private static void receiveMulticastMessages() {
+        try {
+            while (true) {
+                Thread.sleep(5000);
+                String simulatedMessage = "Received message at " + LocalDateTime.now();
+                logMessage(simulatedMessage);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void logMessage(String message) {
+        try (PrintWriter out = new PrintWriter(new FileWriter(messageLogFile, true))) {
+            out.println(LocalDateTime.now() + ": " + message);
+        } catch (IOException e) {
+            System.err.println("Error writing to log file: " + e.getMessage());
+        }
     }
 
     private static int getId() {

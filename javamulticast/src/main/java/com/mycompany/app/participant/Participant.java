@@ -1,5 +1,7 @@
 package com.mycompany.app.participant;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -17,7 +19,7 @@ public class Participant {
     private static String host = "localhost";
     private static int port = 8080;
     private static int id;
-
+    private static String messageLogFile;
     
     public static void main(String args[]) throws IOException {
         /*  SocketChannel channel = null;
@@ -48,6 +50,21 @@ public class Participant {
             readResonse(channel);
         }
         channel.close(); */
+        String configFilePath = args[0];
+        try (BufferedReader br = new BufferedReader(new FileReader(configFilePath))) {
+            id = Integer.parseInt(br.readLine().trim());
+            messageLogFile = br.readLine().trim();
+            String[] coordinatorInfo = br.readLine().trim().split(" ");
+            host = coordinatorInfo[0];
+            port = Integer.parseInt(coordinatorInfo[1]);
+        } catch (IOException e) {
+            System.err.println("Error reading configuration file: " + e.getMessage());
+            System.exit(1);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid number format in configuration file: " + e.getMessage());
+            System.exit(1);
+        }
+
         connectToServer();
         Thread userInputThread = new Thread(Participant::handleUserCommands);
         userInputThread.start();

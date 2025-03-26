@@ -3,6 +3,7 @@ package com.mycompany.app.coordinator;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -25,6 +26,7 @@ public class Coordinator {
     private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<Integer, Connection>();
     private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<Message>();
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
+    private static Thread mThread;
 
     public static void main(String args[]) throws IOException {
 
@@ -43,6 +45,8 @@ public class Coordinator {
 
         // Thread pool
         ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        mThread = new Thread(new MessageThread());
+        mThread.start();
 
         // Open Server Socket
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
@@ -176,14 +180,12 @@ public class Coordinator {
                     }
                     case "disconnect": {
                         //format -> disconnect id
-                        System.out.println("Received disconnect request from participant.");
                         if (parsedRequest.length < 2) {
                             sendMessage(participant, "invalid format!");
                             break;
                         }
 
                         int id = Integer.parseInt(parsedRequest[1]);
-                        System.out.println("Disconnecting participant with ID: " + id);
 
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or already disconnected!");
@@ -191,11 +193,8 @@ public class Coordinator {
                         }
 
                         connections.get(id).isOnline = false;
-                        System.out.println("Participant ID " + id + " has been marked as offline.");
 
-                        System.out.println("Preparing to send acknowledgment to participant " + id + " with message: Disconnected!");
                         sendMessage(participant, "Disconnected!");
-                        System.out.println("Sent disconnect acknowledgment to participant " + id);
                         break;
                     }
                     case "reconnect": {
@@ -289,5 +288,44 @@ public class Coordinator {
                 }
             }
         }
+    }
+
+    private static class MessageThread implements Runnable {
+        Message message;
+        Connection connection;
+        SocketChannel channel;
+
+        @Override
+        public void run() {
+            while (true) {
+                while (!messageQueue.isEmpty()) {
+                    message = messageQueue.pop();
+                    for (int i = 0; i < message.idsToSend.length; i++) {
+                        connection = connections.get(message.idsToSend[i]);
+                        if (connection.isOnline) {
+                            try {
+                            channel = SocketChannel.open();
+                            InetSocketAddress participant = new InetSocketAddress(connection.readIp, connection.readPort);
+                            //System.out.println("Inet address: " + participant.toString());
+                            channel.connect(participant);
+                            sendMessage(channel, message.time.toString() + ": " + message.message);
+                            //System.out.println("Sent Multi: " + message);
+                            channel.close();
+                            } catch (Exception e) {
+                                System.out.println("Message Thread IO Error");
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception e) {
+
+                }
+                
+            }
+        }
+        
     }
 }

@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 
+import com.mycompany.app.utils.ReadThread;
+
 public class Participant {
     private static final int MAX_MESSAGE_LENGTH = 4096;
     private static LocalDateTime timeOfLastMessage;
@@ -21,7 +23,9 @@ public class Participant {
     private static int id;
     private static String messageLogFile;
     private static String host;
-    private static int port;
+    private static int cport;
+    private static int rport = 3000;
+    private static Thread rThread;
     
     public static void main(String args[]) throws IOException {
         initializeParticipant(args);
@@ -53,7 +57,7 @@ public class Participant {
             String coordinatorLine = br.readLine();
             String[] coordinatorInfo = coordinatorLine.trim().split(" ");
             host = coordinatorInfo[0];
-            port = Integer.parseInt(coordinatorInfo[1]);
+            cport = Integer.parseInt(coordinatorInfo[1]);
         } catch (IOException e) {
             System.err.println("Error reading configuration file: " + e.getMessage());
             System.exit(1);
@@ -66,7 +70,7 @@ public class Participant {
     private static void connectToServer() {
         try {
             channel = SocketChannel.open();
-            InetSocketAddress server = new InetSocketAddress(host, port);
+            InetSocketAddress server = new InetSocketAddress(host, cport);
             channel.connect(server);
             while(!channel.finishConnect()) {
                 Thread.sleep(10);
@@ -92,8 +96,10 @@ public class Participant {
             switch (parse[0].toLowerCase()) {
                 case "register":
                     // TODO: check that thread B is operational
-                    sendCommand("register " + id + " " + host + " " + port);
+                    sendCommand("register " + id + " " + host + " " + rport);
                     timeOfLastMessage = LocalDateTime.now();
+                    rThread = new Thread(new ReadThread(rport, messageLogFile));
+                    rThread.start();
                     break;
                 case "deregister":
                     // TODO: check thread-B relinquished port before sending the deregister
@@ -167,7 +173,6 @@ public class Participant {
     }
 
     private static int readResponse(SocketChannel channel) throws IOException {
-        System.out.println("Attempting to read response from channel..."); // gets here 
 
         ByteBuffer rbuf = ByteBuffer.allocate(4);
         int error = readFull(channel, rbuf, 4);
@@ -182,7 +187,6 @@ public class Participant {
 
         rbuf.flip();
         int len = rbuf.getInt();
-        System.out.println("Received message length: " + len);
 
         if (len > MAX_MESSAGE_LENGTH) {
             System.out.println("Too Long");
@@ -190,7 +194,6 @@ public class Participant {
         }
 
         rbuf = ByteBuffer.allocate(len);
-        System.out.println("Reading message of length: " + len);
 
         error = readFull(channel, rbuf, len);
         if (error <= 0) {
@@ -204,11 +207,9 @@ public class Participant {
         return 1;
     }
 
-    private static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
-        System.out.println("Starting to read full data of size: " + size);
+    public static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
         while (size > 0) {
             int bytesRead = channel.read(rbuf);
-            System.out.println("Bytes read in this iteration: " + bytesRead);
 
             if (bytesRead <= 0) {
                 if (bytesRead == 0) {
@@ -219,10 +220,8 @@ public class Participant {
                 return bytesRead; //error or eof
             }
             size -= bytesRead;
-            System.out.println("Remaining size to read: " + size);
 
         }
-        System.out.println("Successfully read full data.");
         return 1;
     }
 

@@ -204,7 +204,7 @@ public class Participant {
         return 1;
     }
 
-    private static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
+    public static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
         System.out.println("Starting to read full data of size: " + size);
         while (size > 0) {
             int bytesRead = channel.read(rbuf);

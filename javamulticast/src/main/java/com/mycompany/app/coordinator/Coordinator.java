@@ -1,5 +1,7 @@
 package com.mycompany.app.coordinator;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -13,7 +15,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Set;
-
 import com.mycompany.app.utils.Connection;
 import com.mycompany.app.utils.Message;
 
@@ -26,44 +27,58 @@ public class Coordinator {
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
 
     public static void main(String args[]) throws IOException {
-        //Thread pool
+
+        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+            String portLine = br.readLine().trim();
+            portNumber = Integer.parseInt(portLine);
+            String timeoutLine = br.readLine().trim();
+            messageTimeout = Integer.parseInt(timeoutLine);
+        } catch (IOException e) {
+            System.err.println("Error reading configuration file: " + e.getMessage());
+            System.exit(1);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid number format in configuration file: " + e.getMessage());
+            System.exit(1);
+        }
+
+        // Thread pool
         ExecutorService threadPool = Executors.newFixedThreadPool(5);
 
-        //Open Server Socket
+        // Open Server Socket
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.bind(new java.net.InetSocketAddress(portNumber));
         serverSocketChannel.configureBlocking(false);
 
-        //Open Selector
+        // Open Selector
         Selector selector = Selector.open();
 
-        //Register server with selector
+        // Register server with selector
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         System.out.println("Server started on port: " + portNumber);
 
-        //handle connections and socket readiness
+        // Handle connections and socket readiness
         while (true) {
-            //call selector
+            // Call selector
             selector.select();
 
-            //get keys
+            // Get keys
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
             Iterator<SelectionKey> keys = selectedKeys.iterator();
 
-            //check each socket
+            // Check each socket
             while(keys.hasNext()) {
                 System.out.println(LocalDateTime.now().toString());
                 SelectionKey key = keys.next();
                 keys.remove();
 
                 if (key.isAcceptable()) {
-                    //accpting new connections
+                    // Accepting new connections
                     ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
                     SocketChannel clientChannel = serverChannel.accept();
                     clientChannel.configureBlocking(false);
 
-                    //register client with selector
+                    // Register client with selector
                     clientChannel.register(selector, SelectionKey.OP_READ);
                     System.out.println("Client connected: " + clientChannel.getRemoteAddress());
                 } else if (key.isReadable()) {
@@ -109,7 +124,7 @@ public class Coordinator {
                 buf.flip();
                 String request = new String(buf.array(), 0, buf.limit());
                 System.out.println("participant " + participant.getRemoteAddress() + ": " + request);
-                String[] parsedRequest = request.split(" ");
+                String[] parsedRequest = request.split(" ", 4);
                 
                 switch(parsedRequest[0].toLowerCase()) {
                     case "register": {
@@ -161,20 +176,26 @@ public class Coordinator {
                     }
                     case "disconnect": {
                         //format -> disconnect id
+                        System.out.println("Received disconnect request from participant.");
                         if (parsedRequest.length < 2) {
                             sendMessage(participant, "invalid format!");
                             break;
                         }
 
                         int id = Integer.parseInt(parsedRequest[1]);
+                        System.out.println("Disconnecting participant with ID: " + id);
+
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or already disconnected!");
                             break;
                         }
 
                         connections.get(id).isOnline = false;
+                        System.out.println("Participant ID " + id + " has been marked as offline.");
 
+                        System.out.println("Preparing to send acknowledgment to participant " + id + " with message: Disconnected!");
                         sendMessage(participant, "Disconnected!");
+                        System.out.println("Sent disconnect acknowledgment to participant " + id);
                         break;
                     }
                     case "reconnect": {
@@ -215,12 +236,14 @@ public class Coordinator {
                         Set<Integer> ids = connections.keySet();
                         newMessage.idsToSend = new Integer[0]; //TODO: check that the instantiation works
                         newMessage.idsToSend = ids.toArray(newMessage.idsToSend);
-                        newMessage.message = parsedRequest[2];
+                        int x = request.indexOf(parsedRequest[2]);
+                        String message = request.substring(x);
+                        newMessage.message = message;
                         newMessage.time = LocalDateTime.now();
                         messageQueue.add(newMessage);
                         messageList.add(newMessage);
 
-                        sendMessage(participant, "Message Sent!");
+                        sendMessage(participant, "Message Sent! -> " + message);
                         break;
                     }
                     default: {

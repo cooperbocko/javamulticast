@@ -4,10 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
@@ -16,7 +14,7 @@ import java.util.Scanner;
 
 public class Participant {
     private static final int MAX_MESSAGE_LENGTH = 4096;
-    private LocalDateTime timeOfLastMessage;
+    private static LocalDateTime timeOfLastMessage;
     private static Scanner input = new Scanner(System.in);
     private static SocketChannel channel;
     private static boolean isConnected = false;
@@ -26,44 +24,10 @@ public class Participant {
     private static int port;
     
     public static void main(String args[]) throws IOException {
-        /*  SocketChannel channel = null;
-
-        channel = SocketChannel.open();
-        InetSocketAddress server = new InetSocketAddress("localhost", 8080);
-        channel.connect(server);
-        while (!channel.finishConnect()) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        System.out.println("Connected to server"); 
-
-        String message = "";
-        ByteBuffer buf = ByteBuffer.allocate(MAX_MESSAGE_LENGTH);
-        int bytesRead;
-        while (message != "quit") {
-            message = input.nextLine();
-            buf = ByteBuffer.wrap(message.getBytes());
-            while (buf.hasRemaining()) {
-                channel.write(buf);
-            }
-            buf.clear();
-            readResonse(channel);
-        }
-        channel.close(); */
-        // System.out.println("1");
-
         initializeParticipant(args);
-
         connectToServer();
         Thread userInputThread = new Thread(Participant::handleUserCommands);
         userInputThread.start();
-
-        // Thread messageReceiverThread = new Thread(Participant::receiveMulticastMessages);
-        // messageReceiverThread.start();
     }
 
     /**
@@ -119,7 +83,6 @@ public class Participant {
             System.out.print("Enter command: ");
             String command = input.nextLine().trim();
             String[] parse = command.split(" ");
-            int portNumber;
 
             if (command.equalsIgnoreCase("quit")) {
                 closeConnection();
@@ -128,13 +91,9 @@ public class Participant {
 
             switch (parse[0].toLowerCase()) {
                 case "register":
-                    if (parse.length < 2) {
-                        System.out.println("Usage: register [portnumber]");
-                        break;
-                    }
-                    portNumber = Integer.parseInt(parse[1]);
                     // TODO: check that thread B is operational
-                    sendCommand("register " + id + " " + host + " " + portNumber);
+                    sendCommand("register " + id + " " + host + " " + port);
+                    timeOfLastMessage = LocalDateTime.now();
                     break;
                 case "deregister":
                     // TODO: check thread-B relinquished port before sending the deregister
@@ -142,37 +101,12 @@ public class Participant {
                     break;
                 case "disconnect":
                     // TODO: check thread-B relinquished port and is dormant before disconnecting
-                    // System.out.println("Sending disconnect command for ID: " + id); // gets here 
-                    sendCommand("disconnect " + id);
-                    // System.out.println("Sent command");
-                    // try {
-                    //     int result = readResponse(channel);
-                    //     System.out.println("Response read from channel: " + result); // Debugging line
-                    //     if (result == 1) {
-                    //         System.out.println("Successfully received acknowledgment.");
-                    //     } else {
-                    //         System.out.println("Failed to receive acknowledgment or read error.");
-                    //     }
-                    // } catch (IOException e) {
-                    //     System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
-                    //     // System.out.println("Error: Failed to receive acknowledgment: " + e.getMessage());
-                    // }                
+                    sendCommand("disconnect " + id);            
                     break;
                 case "reconnect":
-                    if (parse.length < 2) {
-                        System.out.println("Usage: reconnect [portnumber]");
-                        break;
-                    }
-                    portNumber = Integer.parseInt(parse[1]);
                     // TODO: check thread-b is operational before sending reconnect
-                    if (true) { // placeholder
-                        // TODO: retrieve actual last message timestamp
-                        LocalDateTime lastMessageTime = LocalDateTime.now();
-                        reconnect();
-                        sendCommand("reconnect " + id + " " + lastMessageTime + " " + host + " " + portNumber);
-                    }
-                    // reconnect();
-                    // sendCommand("reconnect " + parse[1]);
+                    reconnect();
+                    sendCommand("reconnect " + id + " " + timeOfLastMessage.toString());
                     break;
                 case "multicast":
                     if (parse.length < 2) {

@@ -15,8 +15,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Set;
-
-import com.mycompany.app.coordinator.Coordinator.HandleRequest;
 import com.mycompany.app.utils.Connection;
 import com.mycompany.app.utils.Message;
 
@@ -126,7 +124,7 @@ public class Coordinator {
                 buf.flip();
                 String request = new String(buf.array(), 0, buf.limit());
                 System.out.println("participant " + participant.getRemoteAddress() + ": " + request);
-                String[] parsedRequest = request.split(" ");
+                String[] parsedRequest = request.split(" ", 4);
                 
                 switch(parsedRequest[0].toLowerCase()) {
                     case "register": {
@@ -238,12 +236,14 @@ public class Coordinator {
                         Set<Integer> ids = connections.keySet();
                         newMessage.idsToSend = new Integer[0]; //TODO: check that the instantiation works
                         newMessage.idsToSend = ids.toArray(newMessage.idsToSend);
-                        newMessage.message = parsedRequest[2];
+                        int x = request.indexOf(parsedRequest[2]);
+                        String message = request.substring(x);
+                        newMessage.message = message;
                         newMessage.time = LocalDateTime.now();
                         messageQueue.add(newMessage);
                         messageList.add(newMessage);
 
-                        sendMessage(participant, "Message Sent!");
+                        sendMessage(participant, "Message Sent! -> " + message);
                         break;
                     }
                     default: {

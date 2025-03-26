@@ -12,9 +12,11 @@ public class Participant {
     private LocalDateTime timeOfLastMessage;
     private static Scanner input = new Scanner(System.in);
 
-
     
     public static void main(String args[]) throws IOException {
+        
+        boolean msgHandler = false;
+
         SocketChannel channel = null;
 
         channel = SocketChannel.open();
@@ -40,9 +42,13 @@ public class Participant {
                 channel.write(buf);
             }
             buf.clear();
-            readResonse(channel);
+            if (!msgHandler) {
+                new AwaitMessage(channel);
+                msgHandler = true;
+            }
+            //readResonse(channel);
         }
-        channel.close();
+        //channel.close();
     }
 
     private static int readResonse(SocketChannel channel) throws IOException {
@@ -88,4 +94,70 @@ public class Participant {
         return 1;
     }
     
+}
+
+class AwaitMessage implements Runnable {
+
+    private final SocketChannel serverChannel;
+    private static final int MAX_MESSAGE_LENGTH = 4096;
+
+    public AwaitMessage(SocketChannel channel) {
+        serverChannel = channel;
+        run();
+    }
+
+    @Override
+        public void run() {
+            while (true) {
+            try {
+            readResonse(serverChannel);
+            } catch (Exception e){
+                System.out.println(e);
+            }
+        }
+        }
+
+        private static int readResonse(SocketChannel channel) throws IOException {
+            ByteBuffer rbuf = ByteBuffer.allocate(4);
+            int error = readFull(channel, rbuf, 4);
+            if (error <= 0) {
+                if (error == 0) {
+                    System.out.println("EOF");
+                } else {
+                    System.out.println("Read Error");
+                }
+                return -1;
+            }
+    
+            rbuf.flip();
+            int len = rbuf.getInt();
+            if (len > MAX_MESSAGE_LENGTH) {
+                System.out.println("Too Long");
+                return -1;
+            }
+    
+            rbuf = ByteBuffer.allocate(len);
+            error = readFull(channel, rbuf, len);
+            if (error <= 0) {
+                System.out.println("Read Error");
+                return -1;
+            }
+    
+            rbuf.flip();
+            String response = new String(rbuf.array(), 0, rbuf.limit());
+            System.out.println(response);
+            return 1;
+        }
+    
+        private static int readFull(SocketChannel channel, ByteBuffer rbuf, int size) throws IOException {
+            while (size > 0) {
+                int bytesRead = channel.read(rbuf);
+                if (bytesRead <= 0) {
+                    return bytesRead; //error or eof
+                }
+                size -= bytesRead;
+            }
+            return 1;
+        }
+
 }

@@ -7,7 +7,10 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -22,6 +25,11 @@ public class Coordinator {
     private static int portNumber = 8080;
     private static int messageTimeout = 30; //in seconds
     private static ConcurrentHashMap<Integer, Connection> connections = new ConcurrentHashMap<Integer, Connection>();
+
+    //separate sockets hashmap implementation
+    private static ConcurrentHashMap<Integer, SocketChannel> sockets = new ConcurrentHashMap<Integer, SocketChannel>();
+    private static int currentInt = 0;
+
     private static ConcurrentLinkedDeque<Message> messageQueue = new ConcurrentLinkedDeque<Message>();
     private static ConcurrentLinkedDeque<Message> messageList = new ConcurrentLinkedDeque<Message>();
 
@@ -84,9 +92,16 @@ public class Coordinator {
         private final SocketChannel participant;
         private final SelectionKey key;
 
+        private int socketKey = currentInt;
+
         public HandleRequest(SelectionKey key) {
             this.participant = (SocketChannel) key.channel();
             this.key = key;
+
+            sockets.put(currentInt, this.participant);
+            socketKey = currentInt;
+            currentInt++;
+            
         }
 
         @Override
@@ -198,27 +213,38 @@ public class Coordinator {
                         sendMessage(participant, "Reconnected!");
                         break;
                     }
-                    case "multicast": {
+                    case "msend": {
                         //format multicast id message
-                        if (parsedRequest.length < 3) {
+                        if (parsedRequest.length < 2) {
                             sendMessage(participant, "invalid format!");
+                            //System.out.println(key + "\n");
+                            for (Integer cKey : connections.keySet()) {
+                                System.out.println(connections.get(cKey));
+                            }
                             break;
                         }
 
-                        int id = Integer.parseInt(parsedRequest[1]);
+                        /*
                         if (!connections.containsKey(id) || !connections.get(id).isOnline) {
                             sendMessage(participant, "Not registered or not online!");
                             break;
-                        }
+                        }*/
+
+
 
                         Message newMessage = new Message();
                         Set<Integer> ids = connections.keySet();
                         newMessage.idsToSend = new Integer[0]; //TODO: check that the instantiation works
                         newMessage.idsToSend = ids.toArray(newMessage.idsToSend);
-                        newMessage.message = parsedRequest[2];
+                        newMessage.message = request.substring(6);
                         newMessage.time = LocalDateTime.now();
                         messageQueue.add(newMessage);
                         messageList.add(newMessage);
+
+                        List<Integer> keyList = new ArrayList<>(sockets.keySet());
+                        for (int multicastKey : keyList) {
+                            sendMessage(sockets.get(multicastKey), request.substring(6));
+                        }
 
                         sendMessage(participant, "Message Sent!");
                         break;
@@ -229,6 +255,7 @@ public class Coordinator {
                     }
                 }
             } catch (IOException e) {
+                System.out.println(e);
                 System.out.println("Participant Disconnect"); 
                 key.cancel();
             }

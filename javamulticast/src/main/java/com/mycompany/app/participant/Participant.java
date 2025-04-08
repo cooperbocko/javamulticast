@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
@@ -95,7 +96,13 @@ public class Participant {
             switch (parse[0].toLowerCase()) {
                 case "register":
                     // TODO: check that thread B is operational
-                    sendCommand("register " + id + " " + host + " " + id);
+                    String ip = "";
+                    try {
+                        ip = InetAddress.getLocalHost().getHostAddress();
+                    } catch (IOException e) {
+
+                    }
+                    sendCommand("register " + id + " " + ip + " " + id);
                     timeOfLastMessage = LocalDateTime.now();
                     rThread = new Thread(new ReadThread(id, messageLogFile));
                     rThread.start();

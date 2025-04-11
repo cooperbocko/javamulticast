@@ -36,6 +36,7 @@ public class Coordinator {
             portNumber = Integer.parseInt(portLine);
             String timeoutLine = br.readLine().trim();
             messageTimeout = Integer.parseInt(timeoutLine);
+            System.out.println(messageTimeout);
         } catch (IOException e) {
             System.err.println("Error reading configuration file: " + e.getMessage());
             System.exit(1);
@@ -275,6 +276,7 @@ public class Coordinator {
         while(messages.hasNext()) {
             Message message = messages.next();
             //remove all exprired messages
+            System.out.println("now: " + now.toString() + " message: " + message.time.toString());
             if (now.isAfter(message.time)) {
                 messageList.removeFirst();
             } else {
